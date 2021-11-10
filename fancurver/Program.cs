@@ -55,6 +55,9 @@ namespace fancurver
             string fanAcontrolname = "Fan Control #3";
             string fanBcontrolname = "Fan Control #4";
 
+            int fanArpm = 0;
+            int fanBrpm = 0;
+
 
 
             //fan curve:
@@ -81,7 +84,7 @@ namespace fancurver
             float curveAtemp4 = 140;
             float curveAspeed4 = 100;  //final point should always be 100, or the "max" value for the curve.
 
-            // hysterysis value (don't change the fan speed unless the new speed is <value> more or less than the previously set value)
+            // hysterysis value (ie. don't change the fan speed unless the new temp is <value> more or less than the temp when the speed was set most recently)
             int temphysterysis = 8;
 
             bool speedchange = false;
@@ -112,15 +115,16 @@ namespace fancurver
 
 
             int speedtoset = 40;  //set an initial value to ensure the fans are set to something besides null or 0 if an exception occurs.
+            int speedlastset = 0;
 
 
-            //set integer i to 0
+            //set integer i to 0 initially. by defaul this value only changes when the process is exiting or when using i++ for debugging, which is usually commented out.
             int i = 0;
 
             // run this many times: (or forever by commenting out the i++ below)
             while (i < 30)
             {
-                Console.WriteLine("...starting data collection phase...");
+                //Console.WriteLine("...starting data collection phase...");
                 //get the current sensor data using a new "UpdateVisitor" object, defined below as a public class.
                 computer.Accept(new UpdateVisitor());
 
@@ -161,14 +165,11 @@ namespace fancurver
                 // this code block needs to be after the last temp sensor collection, but before the fan sensors
                 // also there's so many foreach loops to deal with, we only want this to run once, so positioning is critical
 
-                Console.WriteLine("...processing data...");
+                //Console.WriteLine("...processing data...");
 
                 // now that we have all the current temps, add them together for the fan curves usage:
                 sumoftemps = cpucurrenttemp + gpucurrenttemp;
 
-                Console.WriteLine("gpucurrenttemp:      {0} °C", gpucurrenttemp);
-                Console.WriteLine("cpucurrenttemp:      {0} °C", cpucurrenttemp);
-                Console.WriteLine("sumoftemps:          {0} °C", sumoftemps);
 
                 //calculate the temp from the slope value:
                 // first find what slope to use, what points is the current value between:
@@ -221,23 +222,28 @@ namespace fancurver
                     }
                 }
 
-                // check the hysterysis value to ensure we should actually set a new speed value:
-                if ((Math.Abs(sumoftemps - sumoftempslastused)) >= temphysterysis)
+                // done collecting input temps, see if we need to adjust fan values:
+
+
+                // check the hysterysis value to ensure we should actually set a new speed value, AND ensure the speed determined isn't the same as the last value set
+                // (ie, if we've already hit the floor or ceiling speeds of the curve, the temp hysterysis check might pass, but the speed would be the same still)
+                if (((Math.Abs(sumoftemps - sumoftempslastused)) >= temphysterysis) && (speedtoset != speedlastset))
                 {
                     sumoftempslastused = sumoftemps;
+                    speedlastset = speedtoset;
                     speedchange = true;
                 }
                 else
                 {
                     speedchange = false;
                 }
-                Console.WriteLine("sumoftempslastused:  {0} °C", sumoftempslastused);
-                Console.WriteLine("speedtoset:          {0} %", speedtoset);
-                Console.WriteLine("speedchange:         {0}", speedchange);
+
+
+
 
                 /////////////////
 
-                Console.WriteLine("....starting control phase....");
+                //Console.WriteLine("....starting control phase....");
                 foreach (IHardware hardware in computer.Hardware)
                 {
 
@@ -252,11 +258,13 @@ namespace fancurver
                                     if (string.Equals(sensor.Name, fanAsensorname))
                                     {
                                         //Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", hardware.Name, subhardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
+                                        fanArpm = (int)Math.Round((float)sensor.Value, 0);
                                     }
 
                                     if (string.Equals(sensor.Name, fanBsensorname))
                                     {
                                         //Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", hardware.Name, subhardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
+                                        fanBrpm = (int)Math.Round((float)sensor.Value, 0);
                                     }
                                     
                                     if (string.Equals(sensor.Name, fanAcontrolname))
@@ -283,6 +291,25 @@ namespace fancurver
                         }
                     }
                 }
+
+                // done with the processing of this while run, now report on the outcomes, prepare for next run, and check if an exit has been called.
+
+                Console.WriteLine("GPU Temp:            {0} °C", gpucurrenttemp);
+                Console.WriteLine("CPU Temp:            {0} °C", cpucurrenttemp);
+                Console.WriteLine("SUM of Temps:        {0} °C", sumoftemps);
+                
+                Console.WriteLine("Hysterysis:          {0} °C", temphysterysis);
+                Console.WriteLine("Speed Target:        {0} %", speedtoset);
+                
+                Console.WriteLine("FanA:                {0} RPM", fanArpm);
+                Console.WriteLine("FanB:                {0} RPM", fanBrpm);
+
+                Console.WriteLine("Speed Changed:       {0}", speedchange);
+                Console.WriteLine("Temp last used:      {0} °C", sumoftempslastused);
+                Console.WriteLine("Speed last set:      {0} %", speedlastset);
+
+                Console.WriteLine(" ");
+
                 //clear old values fromt he computer object to keep memory usage low:
                 //computer.Reset(); // this makes mem and cpu usage worse.. don't do it.
 
