@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright 2021, peacepenguin, All rights reserved.
+
+using System;
 using System.Threading;
 using LibreHardwareMonitor.Hardware;
 
@@ -59,9 +61,9 @@ namespace fancurver
 
             // we're using the CPU and GPU as an aggregate input,
             // take the SUM of the temperatures, and adjust the curve to that temp.
-            // this makes more sense from an engineering standpoint. The total heat of the system = ~ CPU + GPU temp
-            // the high end of the curve could be set to 100c, so either device can trigger the higher curve. 30c+70c=100c == set to 100%
-            // or more ideally 
+            // The total heat of the system = ~ CPU + GPU temp
+            // when controlling chassis fans, the entire system load should be considered
+            // when controlling aio pumps, or cpu fans, only the cpu load should be considered
 
             // initial point on the curve, defines the lowest possible fan speed:
             float curveAtemp1 = 80;
@@ -79,8 +81,8 @@ namespace fancurver
             float curveAtemp4 = 140;
             float curveAspeed4 = 100;  //final point should always be 100, or the "max" value for the curve.
 
-            // hysterysis value (don't change the fan speed unless the new speed is 5% more or less than the previously set value) // might not use this, little janky, use temp for hysterysis.
-            int temphysterysis = 5;
+            // hysterysis value (don't change the fan speed unless the new speed is <value> more or less than the previously set value)
+            int temphysterysis = 8;
 
             bool speedchange = false;
 
@@ -106,7 +108,6 @@ namespace fancurver
             float cpucurrenttemp = 0;
 
             float sumoftemps = 0;
-            float previoussumoftemps = 0;
             float sumoftempslastused = 0;
 
 
@@ -134,7 +135,7 @@ namespace fancurver
                                 if (string.Equals(sensor.SensorType.ToString(), "Temperature"))
                                 {
                                     //Print the raw item that matches our exact criteria:
-                                    Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}", hardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
+                                    //Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}", hardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
 
                                     //now that we've recorded the previous results, update gpucurrenttemp from the sensor object:
                                     gpucurrenttemp = (int)Math.Round((float)sensor.Value, 0);
@@ -146,7 +147,7 @@ namespace fancurver
                                 if (string.Equals(sensor.SensorType.ToString(), "Temperature"))
                                 {
                                     //Print the raw item that matches our exact criteria:
-                                    Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}", hardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
+                                    //Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}", hardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
 
                                     //now that we've recorded the previous results, update cpucurrenttemp from the sensor object:
                                     cpucurrenttemp = (int)Math.Round((float)sensor.Value, 0);
@@ -163,14 +164,11 @@ namespace fancurver
                 Console.WriteLine("...processing data...");
 
                 // now that we have all the current temps, add them together for the fan curves usage:
-                previoussumoftemps = sumoftemps;
                 sumoftemps = cpucurrenttemp + gpucurrenttemp;
 
-                Console.WriteLine("gpucurrenttemp:      {0}", gpucurrenttemp);
-                Console.WriteLine("cpucurrenttemp:      {0}", cpucurrenttemp);
-
-                Console.WriteLine("sumoftemps =         {0}", sumoftemps);
-                Console.WriteLine("previoussumoftemps = {0}", previoussumoftemps);
+                Console.WriteLine("gpucurrenttemp:      {0} °C", gpucurrenttemp);
+                Console.WriteLine("cpucurrenttemp:      {0} °C", cpucurrenttemp);
+                Console.WriteLine("sumoftemps:          {0} °C", sumoftemps);
 
                 //calculate the temp from the slope value:
                 // first find what slope to use, what points is the current value between:
@@ -228,22 +226,18 @@ namespace fancurver
                 {
                     sumoftempslastused = sumoftemps;
                     speedchange = true;
-                    //sensor.Control.SetSoftware(speedtoset); // dont set the sensors yet, still testing.
-                    Console.WriteLine("speedchange: {0}", speedchange);
-                    Console.WriteLine("sumoftempslastused: {0}", sumoftempslastused);
                 }
                 else
                 {
                     speedchange = false;
-                    Console.WriteLine("speedchange: {0}", speedchange);
-                    Console.WriteLine("sumoftempslastused: {0}", sumoftempslastused);
                 }
-
-                Console.WriteLine("speedtoset = {0}", speedtoset);
+                Console.WriteLine("sumoftempslastused:  {0} °C", sumoftempslastused);
+                Console.WriteLine("speedtoset:          {0} %", speedtoset);
+                Console.WriteLine("speedchange:         {0}", speedchange);
 
                 /////////////////
 
-                Console.WriteLine("...starting control phase...");
+                Console.WriteLine("....starting control phase....");
                 foreach (IHardware hardware in computer.Hardware)
                 {
 
@@ -257,17 +251,17 @@ namespace fancurver
                                 {
                                     if (string.Equals(sensor.Name, fanAsensorname))
                                     {
-                                        Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", hardware.Name, subhardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
+                                        //Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", hardware.Name, subhardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
                                     }
 
                                     if (string.Equals(sensor.Name, fanBsensorname))
                                     {
-                                        Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", hardware.Name, subhardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
+                                        //Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", hardware.Name, subhardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
                                     }
                                     
                                     if (string.Equals(sensor.Name, fanAcontrolname))
                                     {
-                                        Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", hardware.Name, subhardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
+                                        //Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", hardware.Name, subhardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
 
                                         if (speedchange)
                                         {
@@ -277,7 +271,7 @@ namespace fancurver
 
                                     if (string.Equals(sensor.Name, fanBcontrolname))
                                     {
-                                        Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", hardware.Name, subhardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
+                                        //Console.WriteLine("{0}, {1}, {2}, {3}, {4}, {5}, {6}", hardware.Name, subhardware.Name, sensor.Name, sensor.Value, sensor.SensorType, sensor.Index, sensor.Identifier);
 
                                         if (speedchange)
                                         {
@@ -295,10 +289,19 @@ namespace fancurver
                 //increment i variable by 1 (or comment out to run forever)
                 //i++;
 
+                Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs args) {
+                    args.Cancel = true;
+                    //Console.WriteLine("CANCEL command received! Cleaning up. please wait...");
+                    //set i really high to ensure the while loop exits:
+                    i = 999;
+                    // must sleep a little here, otherwise the exit check loop happens multiple times per second, spiking cpu usage till the cleanup and exit is finished
+                    Thread.Sleep(700);
+                };
+
                 // sleep a few seconds in between loop runs
                 Thread.Sleep(2000);
             }
-            // now we're outside the main loop, must have hit the max run point:
+            // now we're outside the while loop, max run reached or ctrl-c detected.
             // set controlled fans back to default on exit:
             Console.WriteLine("exiting, setting all controlled fans to bios control mode ie. Default");
 
@@ -332,6 +335,8 @@ namespace fancurver
                 }
             }
             computer.Close();
+            Console.WriteLine("Exiting now");
+            Environment.Exit(0);
         }
     }
 
