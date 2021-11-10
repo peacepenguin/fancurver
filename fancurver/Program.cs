@@ -73,7 +73,7 @@ namespace fancurver
 
             // medium load point
             float curveAtemp3 = 120;
-            float curveAspeed3 = 60;
+            float curveAspeed3 = 80;
 
             // max load point
             float curveAtemp4 = 140;
@@ -116,7 +116,7 @@ namespace fancurver
             //set integer i to 0
             int i = 0;
 
-            // run this many times: (or forever)
+            // run this many times: (or forever by commenting out the i++ below)
             while (i < 30)
             {
                 Console.WriteLine("...starting data collection phase...");
@@ -138,8 +138,6 @@ namespace fancurver
 
                                     //now that we've recorded the previous results, update gpucurrenttemp from the sensor object:
                                     gpucurrenttemp = (int)Math.Round((float)sensor.Value, 0);
-
-
                                 }
                             }
 
@@ -152,11 +150,8 @@ namespace fancurver
 
                                     //now that we've recorded the previous results, update cpucurrenttemp from the sensor object:
                                     cpucurrenttemp = (int)Math.Round((float)sensor.Value, 0);
-
-                                    
                                 }
                             }
-
                         }
                     }
                 }
@@ -204,7 +199,6 @@ namespace fancurver
                         // bvalue = curveAspeed1 - (slope1to2 * curveAtemp1); moved bvalue calcs to global section, one less math to do each loop.
 
                         speedtoset = (int)Math.Round((slope1to2 * sumoftemps + slope1to2bvalue), 0);
-
                     }
                     else
                     {
@@ -226,7 +220,6 @@ namespace fancurver
                                 speedtoset = (int)Math.Round(curveAspeed4, 0);
                             }
                         }
-
                     }
                 }
 
@@ -280,7 +273,6 @@ namespace fancurver
                                         {
                                             sensor.Control.SetSoftware(speedtoset);
                                         }
-
                                     }
 
                                     if (string.Equals(sensor.Name, fanBcontrolname))
@@ -291,31 +283,27 @@ namespace fancurver
                                         {
                                             sensor.Control.SetSoftware(speedtoset);
                                         }
-
                                     }
                                 }
                             }
                         }
                     }
-
                 }
                 //clear old values fromt he computer object to keep memory usage low:
                 //computer.Reset(); // this makes mem and cpu usage worse.. don't do it.
 
                 //increment i variable by 1 (or comment out to run forever)
-                i++;
+                //i++;
 
                 // sleep a few seconds in between loop runs
                 Thread.Sleep(2000);
             }
-
             // now we're outside the main loop, must have hit the max run point:
             // set controlled fans back to default on exit:
             Console.WriteLine("exiting, setting all controlled fans to bios control mode ie. Default");
 
             foreach (IHardware hardware in computer.Hardware)
             {
-
                 if (string.Equals(hardware.Name, fanAhardwarename) || string.Equals(hardware.Name, fanBhardwarename))
                 {
                     foreach (IHardware subhardware in hardware.SubHardware)
@@ -324,37 +312,26 @@ namespace fancurver
                         {
                             foreach (ISensor sensor in subhardware.Sensors)
                             {
-
                                 if (string.Equals(sensor.Name, fanAcontrolname))
                                 {
-
                                     if (speedchange)
                                     {
                                         sensor.Control.SetDefault();
                                     }
-
                                 }
-
                                 if (string.Equals(sensor.Name, fanBcontrolname))
                                 {
-
                                     if (speedchange)
                                     {
                                         sensor.Control.SetDefault();
                                     }
-
                                 }
                             }
                         }
                     }
                 }
-
             }
-
-
-
             computer.Close();
-
         }
     }
 
