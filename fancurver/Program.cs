@@ -4,6 +4,11 @@ using System;
 using System.Threading;
 using LibreHardwareMonitor.Hardware;
 
+//for tray icon:
+using System.Drawing;
+using System.Windows.Forms;
+
+
 //
 
 namespace fancurver
@@ -318,7 +323,7 @@ namespace fancurver
 
                 Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs args) {
                     args.Cancel = true;
-                    //Console.WriteLine("CANCEL command received! Cleaning up. please wait...");
+                    //this code block runs until the main loop exists after catching ctrl-c
                     //set i really high to ensure the while loop exits:
                     i = 999;
                     // must sleep a little here, otherwise the exit check loop happens multiple times per second, spiking cpu usage till the cleanup and exit is finished
@@ -328,7 +333,7 @@ namespace fancurver
                 // sleep a few seconds in between loop runs
                 Thread.Sleep(2000);
             }
-            // now we're outside the while loop, max run reached or ctrl-c detected.
+            // now we're outside the while loop, max run reached or ctrl-c or exit detected.
             // set controlled fans back to default on exit:
             Console.WriteLine("exiting, setting all controlled fans to bios control mode ie. Default");
 
@@ -365,6 +370,27 @@ namespace fancurver
             Console.WriteLine("Exiting now");
             Environment.Exit(0);
         }
+
+        public void CreateTextIcon(string str)
+        {
+            Font fontToUse = new Font("Microsoft Sans Serif", 16, FontStyle.Regular, GraphicsUnit.Pixel);
+            Brush brushToUse = new SolidBrush(Color.White);
+            Bitmap bitmapText = new Bitmap(16, 16);
+            Graphics g = System.Drawing.Graphics.FromImage(bitmapText);
+
+            IntPtr hIcon;
+
+            g.Clear(Color.Transparent);
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.SingleBitPerPixelGridFit;
+            g.DrawString(str, fontToUse, brushToUse, -4, -2);
+            hIcon = (bitmapText.GetHicon());
+
+            NotifyIcon notifyx = new NotifyIcon();
+            notifyx.Icon = System.Drawing.Icon.FromHandle(hIcon);
+            DestroyIcon(hIcon.ToInt32);
+        }
+
+
     }
 
     public class UpdateVisitor : IVisitor
