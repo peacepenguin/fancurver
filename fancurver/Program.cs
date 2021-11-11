@@ -1,4 +1,6 @@
 ﻿// Copyright 2021, peacepenguin, All rights reserved.
+// some code taken from examples from librehardwaremonitor and openhardware monitor
+// and are copyright by their contributors and authors
 
 using System;
 using System.Threading;
